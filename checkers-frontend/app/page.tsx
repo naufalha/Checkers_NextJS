@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
       <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-2xl w-full max-w-md">
-        <h1 className="text-4xl font-bold text-white text-center mb-2">Catur Jawa</h1>
+        <h1 className="text-4xl font-bold text-white text-center mb-2">Checkers</h1>
         <p className="text-slate-400 text-center mb-8">Modern Checkers Interface</p>
 
         <form onSubmit={handleStartGame} className="space-y-4">

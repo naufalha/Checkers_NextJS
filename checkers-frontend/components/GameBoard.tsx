@@ -6,7 +6,7 @@ import { GameState, Position, MoveHint, PieceColor } from "@/types/game";
 import { gameApi } from "@/lib/api";
 import { parseHints, isSamePos } from "@/lib/utils";
 import BoardSquare from "./BoardSquare";
-import { Loader2, RefreshCw, AlertTriangle, Trophy } from "lucide-react";
+import { Loader2, AlertTriangle, Trophy } from "lucide-react";
 
 interface GameBoardProps {
   gameId: string;
@@ -15,24 +15,18 @@ interface GameBoardProps {
 export default function GameBoard({ gameId }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  
   // State Interaksi
   const [selectedPos, setSelectedPos] = useState<Position | null>(null);
   const [availableHints, setAvailableHints] = useState<MoveHint[]>([]);
   const [validDestinations, setValidDestinations] = useState<Position[]>([]);
 
-  // 1. Fetch Board State
   const fetchBoard = useCallback(async () => {
     try {
       const data = await gameApi.getBoard(gameId);
       setGameState(data);
-      // Reset seleksi setiap kali board refresh
-      setSelectedPos(null);
-      setValidDestinations([]);
     } catch (err) {
-      console.error(err);
-      setError("Gagal memuat papan permainan.");
+      console.error("Failed to load board", err);
     }
   }, [gameId]);
 
@@ -41,49 +35,48 @@ export default function GameBoard({ gameId }: GameBoardProps) {
     fetchBoard();
   }, [fetchBoard]);
 
-  // 2. Load Hints (Pre-load atau Lazy load)
-  const loadHints = async () => {
-    if (!gameState) return;
-    try {
-      const rawHints = await gameApi.getHints(gameId);
-      const parsed = parseHints(rawHints);
-      setAvailableHints(parsed);
-    } catch (err) {
-      console.error("Failed fetching hints", err);
-    }
-  };
-
-  // Muat hint setiap kali giliran berubah atau board update
+  // Load Hints saat giliran aktif
   useEffect(() => {
-    if (gameState?.status === "Play") {
-      loadHints();
-    }
-  }, [gameState]);
+    const loadHints = async () => {
+      if (gameState?.status === "Play") {
+        try {
+          const rawHints = await gameApi.getHints(gameId);
+          const parsed = parseHints(rawHints);
+          setAvailableHints(parsed);
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+    loadHints();
+  }, [gameState, gameId]); // Re-run saat gameState berubah
 
-  // 3. Handle Click Logic
+  // Handle Click
   const handleSquareClick = async (x: number, y: number) => {
     if (!gameState || gameState.status !== "Play") return;
+    
 
+    // --- FIX UTAMA: Akses Array Board menggunakan [Y][X] bukan [X][Y] ---
+    const cell = gameState.board[y][x]; 
     const clickedPos = { x, y };
-    const cell = gameState.board[x][y]; // Ingat: Array 2D board[row][col] -> board[x][y] jika backend kirim X sebagai Row
     
-    // --- Logic A: User klik bidak sendiri (Select Phase) ---
-    // Cek apakah ada bidak dan warnanya sesuai giliran
-    const isMyTurn = gameState.currentColor === (cell.piece?.color === PieceColor.Black ? "Black" : "Red");
-    
-    if (cell.piece && isMyTurn) {
-      // Jika Double Jump Active, pastikan user hanya memilih bidak yang sedang aktif
-      // (Ini asumsi backend memvalidasi, tapi UI bisa membantu memfilter jika backend kirim info bidak mana yg harus gerak)
+    // Logic A: Select Bidak Sendiri
+    // Cek apakah user klik bidak yang warnanya sesuai giliran
+    const isPieceColorMatch = cell.piece?.color === (gameState.currentColor === "Black" ? PieceColor.Black : PieceColor.Red);
+
+    if (cell.piece && isPieceColorMatch) {
+      // Jika sedang Double Jump, validasi bidak yang boleh dipilih
+      // (Opsional: bisa ditambah logic strict di sini)
       
       setSelectedPos(clickedPos);
       
-      // Filter hints: Ambil hanya gerakan yang berasal dari bidak ini
+      // Filter destinasi hanya untuk bidak ini
       const movesForThisPiece = availableHints.filter(h => isSamePos(h.from, clickedPos));
       setValidDestinations(movesForThisPiece.map(h => h.to));
       return;
     }
 
-    // --- Logic B: User klik kotak kosong (Move Phase) ---
+    // Logic B: Move ke Kotak Kosong
     const isDestinationValid = validDestinations.some(dest => isSamePos(dest, clickedPos));
     
     if (selectedPos && !cell.piece && isDestinationValid) {
@@ -95,61 +88,62 @@ export default function GameBoard({ gameId }: GameBoardProps) {
     setLoading(true);
     try {
       await gameApi.makeMove(gameId, from.x, from.y, to.x, to.y);
-      await fetchBoard(); // Refresh board state
+      // Reset seleksi lokal
+      setSelectedPos(null);
+      setValidDestinations([]);
+      // Refresh data dari server
+      await fetchBoard();
     } catch (err) {
-      alert("Gerakan tidak valid atau server error!");
+      alert("Gerakan gagal! Cek aturan main.");
     } finally {
       setLoading(false);
     }
   };
-
-  if (!gameState) return <div className="flex justify-center p-10"><Loader2 className="animate-spin" /></div>;
+console.log(gameState);
+  if (!gameState) return <div className="p-10 text-center text-stone-500">Loading Arena...</div>;
 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-4xl mx-auto p-4">
       
-      {/* HUD / Status Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-center w-full bg-slate-800 p-4 rounded-xl text-white shadow-xl">
-        <div className="flex items-center gap-4">
-          <div className={`px-4 py-2 rounded-lg font-bold ${gameState.currentColor === 'Black' ? 'bg-slate-900 border border-slate-600' : 'bg-red-600'}`}>
-            Giliran: {gameState.currentColor}
-          </div>
-          {gameState.isDoubleJumpActive && (
-            <div className="flex items-center gap-2 text-yellow-400 font-bold animate-pulse">
-              <AlertTriangle size={20} />
-              MUST JUMP AGAIN!
-            </div>
-          )}
+      {/* HUD */}
+      <div className="flex justify-between items-center w-full bg-white/80 backdrop-blur p-4 rounded-xl shadow-sm border border-stone-200">
+        <div className="flex items-center gap-3">
+          <span className="text-stone-500 font-medium">Turn:</span>
+          <span className={`px-3 py-1 rounded-full font-bold text-white ${gameState.currentColor === 'Black' ? 'bg-slate-900' : 'bg-red-600'}`}>
+            
+            {gameState.currentPlayer}
+          </span>
         </div>
-        
-        <div className="text-sm opacity-75">Status: {gameState.status}</div>
+        {gameState.isDoubleJumpActive && (
+          <div className="flex items-center gap-2 text-amber-600 font-bold animate-pulse">
+            <AlertTriangle size={18} />
+            Double Jump Required!
+          </div>
+        )}
       </div>
 
-      {/* Game Board Grid */}
-      <div className="relative">
-        {/* Overlay Loading saat Move */}
+      {/* BOARD GRID */}
+      <div className="relative select-none">
         {loading && (
-          <div className="absolute inset-0 z-50 bg-black/20 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
-            <Loader2 className="w-12 h-12 text-white animate-spin" />
+          <div className="absolute inset-0 z-20 bg-white/50 flex items-center justify-center rounded">
+            <Loader2 className="w-10 h-10 animate-spin text-stone-600" />
           </div>
         )}
 
-        <div className="grid grid-cols-8 gap-0 border-4 border-[#5c3a21] shadow-2xl rounded-sm overflow-hidden w-[350px] md:w-[600px] h-[350px] md:h-[600px]">
-          {/* Rendering Grid 8x8 */}
-          {gameState.board.map((row, rIndex) => (
-            row.map((cell, cIndex) => {
-              // Cek apakah kotak ini adalah destinasi valid dari bidak yang dipilih
-              const isDest = validDestinations.some(d => isSamePos(d, cell.position));
-              // Cek apakah kotak ini yang sedang dipilih
-              const isSelected = selectedPos ? isSamePos(selectedPos, cell.position) : false;
+        {/* Render Board: Ingat map row = Y, map col = X */}
+        <div className="grid grid-cols-8 gap-0 border-8 border-[#5c3a21] rounded shadow-2xl w-[350px] md:w-[500px] h-[350px] md:h-[500px]">
+          {gameState.board.map((row, y) => (
+            row.map((cell, x) => {
+              const isDest = validDestinations.some(d => isSamePos(d, { x, y }));
+              const isSelected = selectedPos ? isSamePos(selectedPos, { x, y }) : false;
 
               return (
                 <BoardSquare
-                  key={`${rIndex}-${cIndex}`}
+                  key={`${x}-${y}`}
                   cell={cell}
                   isValidMove={isDest}
                   isSelected={isSelected}
-                  onClick={() => handleSquareClick(cell.position.x, cell.position.y)}
+                  onClick={() => handleSquareClick(x, y)}
                 />
               );
             })
@@ -157,20 +151,23 @@ export default function GameBoard({ gameId }: GameBoardProps) {
         </div>
       </div>
 
-      {/* Game Over Modal */}
-      {gameState.status === "Win" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-white p-8 rounded-2xl shadow-2xl text-center max-w-md animate-bounce-in">
-            <Trophy className="w-20 h-20 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">Permainan Selesai!</h2>
-            <p className="text-xl text-slate-600 mb-6">
-              Pemenang: <span className="font-bold text-green-600">{gameState.currentPlayer} ({gameState.currentColor})</span>
+      {/* WIN MODAL */}
+     
+s
+      {gameState.status !== "Play" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl text-center border-4 border-yellow-400">
+            <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-extrabold text-slate-800 mb-1">GAME OVER</h2>
+            <p className="text-lg text-slate-600 mb-6">
+              Winner: <span className="font-bold text-green-600">{gameState.currentColor === "Red" ? "Black" : "Red"}</span>
+              
             </p>
             <button 
               onClick={() => window.location.href = '/'}
-              className="px-6 py-3 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition"
+              className="px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition"
             >
-              Main Lagi
+              Play Again
             </button>
           </div>
         </div>

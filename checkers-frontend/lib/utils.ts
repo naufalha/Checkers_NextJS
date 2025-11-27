@@ -1,4 +1,3 @@
-// lib/utils.ts
 import { MoveHint, Position } from "@/types/game";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -7,12 +6,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Parser: Mengubah "2,2 -> 3,3" menjadi object koordinat
+// Parser: Mengubah "2,2 -> 3,3 [Capture]" menjadi object koordinat
 export function parseHints(hintStrings: string[]): MoveHint[] {
   return hintStrings.map((str) => {
-    // Format: "2,2 -> 3,3" atau "5,5 -> 3,3 (Capture)"
-    // Hapus teks tambahan seperti (Capture) untuk parsing koordinat
-    const cleanStr = str.replace(/\s*\(.*?\)\s*/g, ""); 
+    // FIX: Regex diperbarui untuk menangani (...) DAN [...]
+    // Menghapus apapun di dalam kurung biasa atau kurung siku
+    const cleanStr = str.replace(/\s*[\[\(].*?[\]\)]\s*/g, ""); 
+    
     const [fromStr, toStr] = cleanStr.split("->").map(s => s.trim());
     
     const [fromX, fromY] = fromStr.split(",").map(Number);
