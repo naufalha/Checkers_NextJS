@@ -35,7 +35,7 @@ const BoardSquare: React.FC<BoardSquareProps> = ({ cell, isValidMove, isSelected
             ? "bg-slate-900 border-4 border-slate-700" 
             : "bg-red-600 border-4 border-red-800",
           
-          isSelected && "scale-110 ring-4 ring-yellow-400",
+          isSelected && "ring-4 ring-yellow-400",
           // Jika King, kasih efek glow atau border emas tambahan
           cell.piece.typePiece === PieceType.King && "border-yellow-500"
         )}>

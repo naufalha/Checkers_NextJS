@@ -16,7 +16,6 @@ export default function GameBoard({ gameId }: GameBoardProps) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // State Interaksi
   const [selectedPos, setSelectedPos] = useState<Position | null>(null);
   const [availableHints, setAvailableHints] = useState<MoveHint[]>([]);
   const [validDestinations, setValidDestinations] = useState<Position[]>([]);
@@ -30,12 +29,10 @@ export default function GameBoard({ gameId }: GameBoardProps) {
     }
   }, [gameId]);
 
-  // Initial Load
   useEffect(() => {
     fetchBoard();
   }, [fetchBoard]);
 
-  // Load Hints saat giliran aktif
   useEffect(() => {
     const loadHints = async () => {
       if (gameState?.status === "Play") {
@@ -49,34 +46,23 @@ export default function GameBoard({ gameId }: GameBoardProps) {
       }
     };
     loadHints();
-  }, [gameState, gameId]); // Re-run saat gameState berubah
+  }, [gameState, gameId]);
 
-  // Handle Click
   const handleSquareClick = async (x: number, y: number) => {
     if (!gameState || gameState.status !== "Play") return;
     
-
-    // --- FIX UTAMA: Akses Array Board menggunakan [Y][X] bukan [X][Y] ---
     const cell = gameState.board[y][x]; 
     const clickedPos = { x, y };
     
-    // Logic A: Select Bidak Sendiri
-    // Cek apakah user klik bidak yang warnanya sesuai giliran
     const isPieceColorMatch = cell.piece?.color === (gameState.currentColor === "Black" ? PieceColor.Black : PieceColor.Red);
 
     if (cell.piece && isPieceColorMatch) {
-      // Jika sedang Double Jump, validasi bidak yang boleh dipilih
-      // (Opsional: bisa ditambah logic strict di sini)
-      
       setSelectedPos(clickedPos);
-      
-      // Filter destinasi hanya untuk bidak ini
       const movesForThisPiece = availableHints.filter(h => isSamePos(h.from, clickedPos));
       setValidDestinations(movesForThisPiece.map(h => h.to));
       return;
     }
 
-    // Logic B: Move ke Kotak Kosong
     const isDestinationValid = validDestinations.some(dest => isSamePos(dest, clickedPos));
     
     if (selectedPos && !cell.piece && isDestinationValid) {
@@ -88,10 +74,8 @@ export default function GameBoard({ gameId }: GameBoardProps) {
     setLoading(true);
     try {
       await gameApi.makeMove(gameId, from.x, from.y, to.x, to.y);
-      // Reset seleksi lokal
       setSelectedPos(null);
       setValidDestinations([]);
-      // Refresh data dari server
       await fetchBoard();
     } catch (err) {
       alert("Gerakan gagal! Cek aturan main.");
@@ -99,7 +83,7 @@ export default function GameBoard({ gameId }: GameBoardProps) {
       setLoading(false);
     }
   };
-console.log(gameState);
+
   if (!gameState) return <div className="p-10 text-center text-stone-500">Loading Arena...</div>;
 
   return (
@@ -110,7 +94,6 @@ console.log(gameState);
         <div className="flex items-center gap-3">
           <span className="text-stone-500 font-medium">Turn:</span>
           <span className={`px-3 py-1 rounded-full font-bold text-white ${gameState.currentColor === 'Black' ? 'bg-slate-900' : 'bg-red-600'}`}>
-            
             {gameState.currentPlayer}
           </span>
         </div>
@@ -130,8 +113,10 @@ console.log(gameState);
           </div>
         )}
 
-        {/* Render Board: Ingat map row = Y, map col = X */}
-        <div className="grid grid-cols-8 gap-0 border-8 border-[#5c3a21] rounded shadow-2xl w-[350px] md:w-[500px] h-[350px] md:h-[500px]">
+        {/* UPDATE GRID: 
+            Menambahkan `grid-rows-[repeat(8,1fr)]` agar tinggi baris terkunci rata.
+        */}
+        <div className="grid grid-cols-8 grid-rows-[repeat(8,1fr)] gap-0 border-8 border-[#5c3a21] rounded shadow-2xl w-[350px] md:w-[500px] h-[350px] md:h-[500px]">
           {gameState.board.map((row, y) => (
             row.map((cell, x) => {
               const isDest = validDestinations.some(d => isSamePos(d, { x, y }));
@@ -152,8 +137,6 @@ console.log(gameState);
       </div>
 
       {/* WIN MODAL */}
-     
-s
       {gameState.status !== "Play" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-white p-8 rounded-2xl shadow-2xl text-center border-4 border-yellow-400">
@@ -161,7 +144,6 @@ s
             <h2 className="text-2xl font-extrabold text-slate-800 mb-1">GAME OVER</h2>
             <p className="text-lg text-slate-600 mb-6">
               Winner: <span className="font-bold text-green-600">{gameState.currentColor === "Red" ? "Black" : "Red"}</span>
-              
             </p>
             <button 
               onClick={() => window.location.href = '/'}
