@@ -35,9 +35,19 @@ export interface GameState {
   status: "Play" | "Win" | "Draw";
 }
 
+// === BARU: Interface DTO (Data Transfer Object) untuk API Hint ===
+// Ini mencocokkan format JSON: { "fromX": 1, "fromY": 2, "toX": 0, "toY": 3 }
+export interface MoveHintDto {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+// Format internal aplikasi (setelah diparsing dari DTO)
 export interface MoveHint {
   from: Position;
   to: Position;
   isCapture: boolean;
-  originalString: string;
+  originalString?: string;
 }

@@ -1,8 +1,8 @@
 // lib/api.ts
 import axios from 'axios';
-import { GameState } from '@/types/game';
+import { GameState, MoveHintDto } from '@/types/game';
 
-// Ganti port sesuai backend Anda (5xxx)
+// Ganti port sesuai backend Anda (misal 5260 atau 5000)
 const API_BASE_URL = 'http://localhost:5260/api/checkers';
 
 const api = axios.create({
@@ -14,6 +14,7 @@ const api = axios.create({
 
 export const gameApi = {
   startGame: async (player1: string = 'Black', player2: string = 'Red') => {
+    // Mengirim nama player ke backend untuk memulai game
     const response = await api.post(`/start?player1=${player1}&player2=${player2}`);
     return response.data; // Mengembalikan { gameId, message }
   },
@@ -23,9 +24,11 @@ export const gameApi = {
     return response.data;
   },
 
-  getHints: async (gameId: string): Promise<string[]> => {
+  // === UPDATE: Return type menjadi MoveHintDto[] ===
+  // Mengambil data hint mentah dari backend
+  getHints: async (gameId: string): Promise<MoveHintDto[]> => {
     const response = await api.get(`/${gameId}/hints`);
-    return response.data; // ["2,2 -> 3,3", ...]
+    return response.data; 
   },
 
   makeMove: async (gameId: string, fromX: number, fromY: number, toX: number, toY: number) => {
