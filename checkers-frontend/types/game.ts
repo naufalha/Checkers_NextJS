@@ -5,7 +5,7 @@ export type Position = {
   y: number;
 };
 
-// PENTING: Pastikan urutan ini sesuai backend C# (0=Black, 1=Red)
+// Urutan sesuai backend C# (0=Black, 1=Red)
 export enum PieceColor {
   Black = 1,
   Red = 0,
@@ -33,10 +33,11 @@ export interface GameState {
   currentColor: string;
   isDoubleJumpActive: boolean;
   status: "Play" | "Win" | "Draw";
+  // === UPDATE: Tambahkan field nama pemain (opsional) ===
+  blackName?: string;
+  redName?: string;
 }
 
-// === BARU: Interface DTO (Data Transfer Object) untuk API Hint ===
-// Ini mencocokkan format JSON: { "fromX": 1, "fromY": 2, "toX": 0, "toY": 3 }
 export interface MoveHintDto {
   fromX: number;
   fromY: number;
@@ -44,7 +45,6 @@ export interface MoveHintDto {
   toY: number;
 }
 
-// Format internal aplikasi (setelah diparsing dari DTO)
 export interface MoveHint {
   from: Position;
   to: Position;
